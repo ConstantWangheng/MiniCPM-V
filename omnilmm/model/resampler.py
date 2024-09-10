@@ -99,6 +99,7 @@ class Resampler(nn.Module):
         (grid_size**2) learnable queries and 2d sincos pos_emb
     Outputs:
         A tensor with the shape of (grid_size**2, embed_dim)
+    cross attention采样器: 减少图片token;
     """
 
     def __init__(
@@ -147,15 +148,19 @@ class Resampler(nn.Module):
             nn.init.constant_(m.weight, 1.0)
 
     def forward(self, x, attn_mask=None):
-
+        # 位置编码
         pos_embed = get_abs_pos(self.pos_embed, x.size(1))
-
+        
+        # image patch embedding
         x = self.kv_proj(x)
+        # layer norm
         x = self.ln_kv(x).permute(1, 0, 2)
 
         N = x.shape[1]
+        # query 是随机初始化的参数，会随机训练更新参数，类似bert的cls向量；
         q = self.ln_q(self.query)
         # print((self._repeat(q, N) + self.pos_embed.unsqueeze(1)).dtype, (x + pos_embed.unsqueeze(1)).dtype, x.dtype)
+        # 位置编码叠加到q、k上；
         out = self.attn(
             self._repeat(q, N) + self.pos_embed.unsqueeze(1),
             x + pos_embed.unsqueeze(1),
@@ -164,6 +169,7 @@ class Resampler(nn.Module):
         x = out.permute(1, 0, 2)
 
         x = self.ln_post(x)
+        # proj 是线性映射层
         x = x @ self.proj
         return x
 
