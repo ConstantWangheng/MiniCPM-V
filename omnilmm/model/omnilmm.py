@@ -35,7 +35,8 @@ def create_vision_module(config):
                                      num_classes=0,
                                      dynamic_img_size=True,
                                      dynamic_img_pad=True)
-
+    # vision_tower 对应的是，clip模型，ViT模型获取token的embedding；
+    
     if isinstance(vision_tower, timm.models.VisionTransformer):
         if vision_tower.attn_pool is not None:
             vision_tower.attn_pool = Identity()
@@ -44,6 +45,9 @@ def create_vision_module(config):
     vision_tower.blocks[-1] = Identity()
 
     embed_dim = config.hidden_size
+    # Resampler 基于cross attention实现的特征提取器;
+    # 其中Q是随机初始化的向量，kv表示的是，图片patch的embedding;
+    # cross attention后，Q对应的Output是最终提取的特征结果；类似bert的cls位置的向量，这里是多个类cls的向量;
     resampler = Resampler(
         grid_size=int(math.sqrt(config.num_query)),
         embed_dim=embed_dim,
